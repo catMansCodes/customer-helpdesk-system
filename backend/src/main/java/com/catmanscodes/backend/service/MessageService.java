@@ -4,6 +4,7 @@ import com.catmanscodes.backend.dto.MessageResponse;
 import com.catmanscodes.backend.dto.SendMessageRequest;
 import com.catmanscodes.backend.enums.SenderType;
 import com.catmanscodes.backend.enums.TicketStatus;
+import com.catmanscodes.backend.exception.ResourceNotFoundException;
 import com.catmanscodes.backend.model.Message;
 import com.catmanscodes.backend.model.Ticket;
 import com.catmanscodes.backend.repository.MessageRepository;
@@ -24,7 +25,7 @@ public class MessageService {
     @Transactional
     public MessageResponse addMessage(Long ticketId, SenderType senderType, String content) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found: " + ticketId));
 
         Message message = new Message();
         message.setTicket(ticket);
@@ -47,7 +48,7 @@ public class MessageService {
 
     public List<MessageResponse> getMessagesForTicket(Long ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found: " + ticketId));
         return messageRepository.findByTicketOrderByCreatedAtAsc(ticket)
                 .stream().map(MessageResponse::new).toList();
     }

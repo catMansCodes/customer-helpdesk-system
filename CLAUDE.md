@@ -8,49 +8,76 @@ A customer helpdesk/ticketing system where customers raise tickets, Claude AI re
 
 ## Tech Stack
 
-- **Frontend:** Angular 19 (standalone components, no NgModules), Bootstrap 5.3 + ng-bootstrap, Font Awesome Free, Angular HttpClient + RxJS, JWT in localStorage via HTTP interceptor
-- **Backend:** Spring Boot 3.5.14, Java 17, Maven, Spring Security + JWT (stateless), Spring Data JPA + Hibernate, Lombok, **Spring AI 1.1.5** (`spring-ai-starter-model-anthropic` — not the raw Anthropic SDK)
+- **Frontend:** Angular 19 (standalone components, no NgModules), Bootstrap 5.3, ng-bootstrap 18, Font Awesome Free, Angular HttpClient + RxJS, JWT in localStorage via `HttpInterceptorFn`
+- **Backend:** Spring Boot 3.5.14, Java 17, Maven, Spring Security + JWT (stateless), Spring Data JPA + Hibernate, Lombok, **Spring AI 1.1.5** (`spring-ai-starter-model-google-genai` — Google Gemini free tier via Google AI Studio, not Vertex AI)
 - **Database:** MySQL 8, schema managed by Flyway
 
 ## Key Architecture Decisions
 
-- Claude API is called **only from the backend** — the API key never reaches the browser
+- Gemini API is called **only from the backend** — the API key never reaches the browser
 - Auth is stateless JWT: issued on login, validated per-request via Spring Security filter
 - Angular route guards protect customer/admin routes based on JWT role claim
 - AI auto-response triggers on new ticket creation (backend event, not frontend-driven)
+- All feature components are lazy-loaded via `loadComponent` in `app.routes.ts`
 
 ## Ticket Lifecycle
 
-`open` → `ai_responded` → `escalated` (if customer marks unresolved) → `human_responded` (after admin replies) → `closed`
+`OPEN` → `AI_RESPONDED` → `ESCALATED` (if customer marks unresolved) → `HUMAN_RESPONDED` (after admin replies) → `CLOSED`
 
 Admin can close or reopen any ticket at any time.
 
-## Planned Project Structure
+## Project Structure (as built)
 
 ```
 customer-helpdesk-system/
-├── backend/                        # Spring Boot Maven project
-│   ├── src/main/java/com/catmanscodes/
-│   │   ├── auth/                   # JWT filter, Spring Security config, login endpoint
-│   │   ├── ticket/                 # Ticket entity, repo, service, REST controller
-│   │   ├── message/                # Message entity, repo, service, REST controller
-│   │   ├── user/                   # User entity, repo, UserDetailsService
-│   │   └── ai/                     # Claude API client, auto-response trigger
+├── backend/
+│   ├── src/main/java/com/catmanscodes/backend/
+│   │   ├── config/              # JwtAuthFilter, SecurityConfig
+│   │   ├── controller/          # AuthController, TicketController, MessageController, UserController
+│   │   ├── dto/                 # AuthResponse, LoginRequest, RegisterRequest,
+│   │   │                        #   CreateTicketRequest, SendMessageRequest,
+│   │   │                        #   TicketResponse, MessageResponse, UserProfileResponse
+│   │   ├── enums/               # Role, SenderType, TicketStatus
+│   │   ├── model/               # User, Ticket, Message
+│   │   ├── repository/          # UserRepository, TicketRepository, MessageRepository
+│   │   ├── service/             # AuthService, TicketService, MessageService,
+│   │   │                        #   AiService, UserDetailsServiceImpl
+│   │   ├── utils/               # JwtUtil
+│   │   └── BackendApplication.java
 │   ├── src/main/resources/
-│   │   ├── db/migration/           # Flyway: V1__init.sql, V2__seed_admin.sql, etc.
-│   │   └── application.yml
+│   │   ├── db/migration/
+│   │   │   ├── V1__init.sql
+│   │   │   └── V2__seed_admin.sql   # admin@helpdesk.com / Admin@1234
+│   │   └── application.properties
 │   └── pom.xml
-└── frontend/                       # Angular 19 project
+└── frontend/
     └── src/app/
-        ├── core/                   # AuthService, JwtInterceptor, auth guards
-        ├── shared/                 # Layout shell, sidebar nav, shared components
-        ├── customer/               # Customer dashboard, ticket-create, ticket-thread
-        └── admin/                  # Admin dashboard, all-tickets list, ticket-thread
+        ├── core/
+        │   ├── guards/          # auth.guard.ts, role.guard.ts
+        │   ├── interceptors/    # jwt.interceptor.ts
+        │   └── services/        # auth.service.ts, ticket.service.ts, user.service.ts
+        ├── shared/
+        │   └── layout/          # shell.component.ts (sidebar + router-outlet)
+        ├── features/
+        │   ├── auth/
+        │   │   ├── login/       # login.component.ts
+        │   │   └── register/    # register.component.ts
+        │   ├── customer/
+        │   │   ├── dashboard/   # customer-dashboard.component.ts
+        │   │   ├── new-ticket/  # new-ticket.component.ts
+        │   │   └── ticket-thread/ # customer-ticket-thread.component.ts
+        │   ├── admin/
+        │   │   ├── dashboard/   # admin-dashboard.component.ts
+        │   │   └── ticket-thread/ # admin-ticket-thread.component.ts
+        │   └── shared/
+        │       └── profile/     # profile.component.ts (shared by both roles)
+        ├── app.routes.ts
+        ├── app.config.ts
+        └── environments/
+            └── environment.ts   # apiUrl: 'http://localhost:8080'
 ```
 
 ## Commands
-
-Once scaffolded, the expected commands will be:
 
 **Backend**
 ```bash
@@ -66,9 +93,9 @@ mvn clean package              # build fat JAR
 cd frontend
 npm install
 ng serve                       # dev server at http://localhost:4200
-ng test                        # run unit tests (Karma)
-ng test --include="**/foo.spec.ts"  # run a single spec file
+ng build --configuration development
 ng build --configuration production
+ng test                        # run unit tests (Karma)
 ```
 
 **Database**
@@ -79,8 +106,25 @@ ng build --configuration production
 
 - Swagger UI available at `http://localhost:8080/swagger-ui.html` once backend is running
 - CORS configured to allow `http://localhost:4200` in dev
-- All protected endpoints require `Authorization: Bearer <jwt>` header (added automatically by Angular interceptor)
+- All protected endpoints require `Authorization: Bearer <jwt>` header (added automatically by the JWT interceptor)
 
 ## Admin Account
 
-Admin is pre-seeded via Flyway (no self-signup). Seed SQL lives in a migration file (e.g., `V2__seed_admin.sql`). Default credentials should be set in that file and documented there.
+Pre-seeded via `V2__seed_admin.sql` (no self-signup for admin).
+- **Email:** `admin@helpdesk.com`
+- **Password:** `Admin@1234`
+
+## Route Map
+
+| Path | Component | Guard |
+|---|---|---|
+| `/login` | LoginComponent | — |
+| `/register` | RegisterComponent | — |
+| `/customer/tickets` | CustomerDashboardComponent | authGuard + CUSTOMER role |
+| `/customer/tickets/new` | NewTicketComponent | authGuard + CUSTOMER role |
+| `/customer/tickets/:id` | CustomerTicketThreadComponent | authGuard + CUSTOMER role |
+| `/customer/profile` | ProfileComponent | authGuard + CUSTOMER role |
+| `/admin/tickets` | AdminDashboardComponent | authGuard + ADMIN role |
+| `/admin/tickets/:id` | AdminTicketThreadComponent | authGuard + ADMIN role |
+| `/admin/profile` | ProfileComponent | authGuard + ADMIN role |
+| `**` | — | redirectTo `/login` |

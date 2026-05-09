@@ -4,6 +4,8 @@ import com.catmanscodes.backend.dto.AuthResponse;
 import com.catmanscodes.backend.dto.LoginRequest;
 import com.catmanscodes.backend.dto.RegisterRequest;
 import com.catmanscodes.backend.enums.Role;
+import com.catmanscodes.backend.exception.ConflictException;
+import com.catmanscodes.backend.exception.ResourceNotFoundException;
 import com.catmanscodes.backend.model.User;
 import com.catmanscodes.backend.repository.UserRepository;
 import com.catmanscodes.backend.utils.JwtUtil;
@@ -24,7 +26,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new ConflictException("An account with this email already exists");
         }
 
         User user = new User();
@@ -39,12 +41,14 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        // BadCredentialsException is thrown by AuthenticationManager on wrong credentials
+        // and is handled globally — no try-catch needed here.
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.getEmail()));
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getRole().name(), user.getName());

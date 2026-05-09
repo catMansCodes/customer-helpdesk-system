@@ -52,7 +52,7 @@ customer-helpdesk-system/
 │   │   │   └── V2__seed_admin.sql   ← admin@helpdesk.com / Admin@1234
 │   │   └── application.properties
 │   └── pom.xml
-└── frontend/                        ← Angular 19 (not yet scaffolded)
+└── frontend/                        ← Angular 19 (fully implemented)
 ```
 
 ---
@@ -66,11 +66,11 @@ customer-helpdesk-system/
 | 3 | Backend — Ticket & Message API | ✅ Done |
 | 4 | Backend — AI Auto-Response | ✅ Done |
 | 4b | Backend — Extras (logout, profile, Postman) | ✅ Done |
-| 5 | Frontend — Setup & Core Infrastructure | ⬜ Next |
-| 6 | Frontend — Layout & Routing | ⬜ |
-| 7 | Frontend — Auth Pages | ⬜ |
-| 8 | Frontend — Customer Feature | ⬜ |
-| 9 | Frontend — Admin Feature | ⬜ |
+| 5 | Frontend — Setup & Core Infrastructure | ✅ Done |
+| 6 | Frontend — Layout & Routing | ✅ Done |
+| 7 | Frontend — Auth Pages | ✅ Done |
+| 8 | Frontend — Customer Feature | ✅ Done |
+| 9 | Frontend — Admin Feature | ✅ Done |
 
 ---
 
